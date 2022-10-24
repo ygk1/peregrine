@@ -3,6 +3,14 @@
 
 #include <vector>
 #include "Graph.hh"
+#include "caf/actor_ostream.hpp"
+#include "caf/actor_system.hpp"
+#include "caf/caf_main.hpp"
+#include "caf/event_based_actor.hpp"
+#include "caf/all.hpp"
+#include "caf/io/all.hpp"
+
+using namespace caf;
 
 namespace Peregrine
 {
@@ -23,6 +31,17 @@ namespace Peregrine
     static const bool OVERWRITE_ANTI_EDGES = true;
     static const bool MAINTAIN_ANTI_EDGES = false;
   };
+  template <class Inspector>
+  bool inspect(Inspector& f, PatternGenerator& x) {
+          return f.object(x).fields(f.field("VERTEX_BASED", x.VERTEX_BASED),
+                              f.field("EDGE_BASED", x.EDGE_BASED),
+                              f.field("INCLUDE_ANTI_EDGES", x.INCLUDE_ANTI_EDGES),
+                              f.field("EXCLUDE_ANTI_EDGES", x.EXCLUDE_ANTI_EDGES),
+                              f.field("OVERWRITE_ANTI_EDGES", x.OVERWRITE_ANTI_EDGES),
+                              f.field("MAINTAIN_ANTI_EDGES", x.MAINTAIN_ANTI_EDGES)
+                            );
 }
 
+
+      }
 #endif

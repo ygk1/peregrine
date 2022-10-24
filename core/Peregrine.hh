@@ -8,11 +8,43 @@
 #include <condition_variable>
 #include <filesystem>
 #include <memory>
+#include <cstdlib>
+#include <iostream>
+#include <map>
+#include <set>
+#include <sstream>
+#include <vector>
 
 #include "Options.hh"
 #include "Graph.hh"
 #include "PatternGenerator.hh"
 #include "PatternMatching.hh"
+// #include "caf/actor_ostream.hpp"
+// #include "caf/actor_system.hpp"
+// #include "caf/caf_main.hpp"
+// #include "caf/event_based_actor.hpp"
+// #include "caf/all.hpp"
+// #include "caf/io/all.hpp"
+
+
+
+
+
+
+//CAF_ALLOW_UNSAFE_MESSAGE_TYPE(Peregrine::SmallGraph) 
+//CAF_ALLOW_UNSAFE_MESSAGE_TYPE(std::vector<Peregrine::SmallGraph>)
+//CAF_ALLOW_UNSAFE_MESSAGE_TYPE((std::pair<Peregrine::SmallGraph, long unsigned int>))
+
+
+// std::pair<Peregrine::SmallGraph, long unsigned int> a;
+// template <class Inspector>
+// bool inspect(Inspector& f, std::pair<Peregrine::SmallGraph, long unsigned int>& x) {
+//   return f.object(x).fields(f.field("first", x.first), f.field("second", x.second));
+// }
+// template <class Inspector>
+// bool inspect(Inspector& f, Peregrine::SmallGraph& x) {
+//   return f.apply(x);
+// }
 
 #define CALL_COUNT_LOOP(L, has_anti_vertices)\
 {\
@@ -54,6 +86,8 @@
 
 namespace Peregrine
 {
+
+
   // XXX: construct for each application?
   // so that e.g. gcount isn't accessible from a match()
   // or so task_ctr can't be modified at runtime
@@ -80,6 +114,12 @@ namespace Peregrine
 
 namespace Peregrine
 {
+  
+  
+  // using count = typed_actor<
+  // //message handler for returning counts
+  // result<std::vector<std::pair<Peregrine::SmallGraph, uint64_t>>>(count_atom, DataGraphT&&, const std::vector<SmallGraph>&, uint32_t, uint32_t)>;
+  //behavior count(event_based_actor* self);
   template <Graph::Labelling L,
     bool has_anti_edges,
     bool has_anti_vertices,
@@ -997,9 +1037,10 @@ namespace Peregrine
 
   template <typename DataGraphT>
   std::vector<std::pair<SmallGraph, uint64_t>>
-  count(DataGraphT &&data_graph, const std::vector<SmallGraph> &patterns, uint32_t nworkers)
+  count(DataGraphT &&data_graph, const std::vector<SmallGraph> &patterns, uint32_t nworkers, uint32_t nprocesses=1)
   {
     // initialize
+    
     std::vector<std::pair<SmallGraph, uint64_t>> results;
     if (patterns.empty()) return results;
 
@@ -1068,7 +1109,7 @@ namespace Peregrine
 
     dg->set_rbi(new_patterns.front());
     dg->set_known_labels(new_patterns);
-
+    
     for (uint32_t i = 0; i < nworkers; ++i)
     {
       pool.emplace_back(count_worker,

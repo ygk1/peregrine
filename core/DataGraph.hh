@@ -10,6 +10,15 @@
 #include <stdint.h> // uint32_t
 
 #include "Graph.hh"
+#include "caf/actor_ostream.hpp"
+#include "caf/actor_system.hpp"
+#include "caf/caf_main.hpp"
+#include "caf/event_based_actor.hpp"
+#include "caf/all.hpp"
+#include "caf/io/all.hpp"
+#include "caf/all.hpp"
+using namespace caf;
+
 
 namespace Peregrine
 {
@@ -25,6 +34,7 @@ namespace Peregrine
 
   class DataGraph
   {
+
    public:
     DataGraph(const std::string &data_graph_path);
     DataGraph(const SmallGraph &p);
@@ -50,7 +60,27 @@ namespace Peregrine
     const std::vector<uint32_t> &get_qo(uint32_t fi) const;
     uint32_t original_id(uint32_t v) const;
     const std::pair<uint32_t, uint32_t> &get_label_range() const;
-
+    // caf::type_id_t type() const noexcept {
+    //   return caf::type_id_v<DataGraph>;
+    //   }
+    //AnalyzedPattern rbi;
+    // uint32_t new_label;
+    template <class Inspector>
+    friend bool inspect(Inspector& f, DataGraph& x) { 
+          return f.object(x).fields(f.field("rbi", x.rbi),
+                                  f.field("new_label", x.new_label),
+                                  f.field("vertex_count", x.vertex_count),
+                                  f.field("edge_count", x.edge_count),
+                                  f.field("forest_count", x.forest_count),
+                                  f.field("labelled_graph", x.labelled_graph),
+                                  f.field("labels", x.labels),
+                                  f.field("label_range", x.label_range),
+                                  f.field("ids", x.ids),
+                                  f.field("data_graph", x.data_graph),
+                                  f.field("graph_in_memory", x.graph_in_memory),
+                                  f.field("known_labels", x.known_labels)
+          );
+    }
     AnalyzedPattern rbi;
     uint32_t new_label;
    private:
@@ -67,6 +97,8 @@ namespace Peregrine
     std::unique_ptr<uint32_t[]> graph_in_memory;
     std::unordered_set<uint32_t> known_labels;
   };
-}
+
+  }
+  
 
 #endif

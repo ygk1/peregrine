@@ -3,7 +3,12 @@
 #include <unistd.h>
 
 #include "Peregrine.hh"
+#include "caf/actor_ostream.hpp"
+#include "caf/actor_system.hpp"
+#include "caf/caf_main.hpp"
+#include "caf/event_based_actor.hpp"
 
+using namespace caf;
 
 bool is_directory(const std::string &path)
 {

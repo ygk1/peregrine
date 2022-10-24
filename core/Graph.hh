@@ -1,6 +1,7 @@
 #ifndef GRAPH_HH
 #define GRAPH_HH
 
+#include <cstdlib>
 #include <execution>
 #include <map>
 #include <algorithm>
@@ -14,14 +15,16 @@
 #include "utils.hh"
 #include "./bliss-0.73/graph.hh"
 
+#include "caf/all.hpp"
 
-namespace Peregrine
-{
 
-  // forward declaration to allow friendship with SmallGraph
+
+using namespace caf;
+namespace Peregrine{
+  class SmallGraph;
   struct PatternGenerator;
+  class AnalyzedPattern;
   class DataGraph;
-  
   namespace Graph
   {
     enum Labelling
@@ -31,8 +34,33 @@ namespace Peregrine
       PARTIALLY_LABELLED,
       DISCOVER_LABELS
     };
+    template <class Inspector>
+    bool inspect(Inspector& f, Labelling& x) {
+      return f.apply(x);
+    }
   } // namespace Graph
+  
+}
 
+typedef std::pair<Peregrine::SmallGraph, uint64_t> result; 
+CAF_BEGIN_TYPE_ID_BLOCK(Peregrine, first_custom_type_id)
+    CAF_ADD_ATOM(Peregrine, count_atom)
+    CAF_ADD_ATOM(Peregrine, count_atom_str)
+    CAF_ADD_TYPE_ID(Peregrine, (Peregrine::SmallGraph))
+    //CAF_ADD_TYPE_ID(Peregrine, (Peregrine::DataGraph))
+    //CAF_ADD_TYPE_ID(Peregrine, (Peregrine::PatternGenerator))
+    CAF_ADD_TYPE_ID(Peregrine, (Peregrine::Graph::Labelling))
+    CAF_ADD_TYPE_ID(Peregrine, (std::vector<Peregrine::SmallGraph>))
+    CAF_ADD_TYPE_ID(Peregrine, (Peregrine::AnalyzedPattern))
+    CAF_ADD_TYPE_ID(Peregrine, (std::pair<Peregrine::SmallGraph, uint64_t>))
+    CAF_ADD_TYPE_ID(Peregrine, (std::vector<std::pair<Peregrine::SmallGraph, uint64_t>>))
+CAF_END_TYPE_ID_BLOCK(Peregrine)
+//CAF_ALLOW_UNSAFE_MESSAGE_TYPE(result)
+namespace Peregrine
+{
+  
+  // forward declaration to allow friendship with SmallGraph
+  
   class SmallGraph
   {
     private:
@@ -44,6 +72,17 @@ namespace Peregrine
       std::vector<uint32_t> labels;
       Graph::Labelling labelling = Graph::UNLABELLED;
     public:
+      
+      // type_id_t type() const noexcept {
+      //   return type_id_v<SmallGraph>;
+      //   }
+      template <class Inspector>
+      friend bool inspect(Inspector& f, SmallGraph& x) {
+          return f.object(x).fields(f.field("true_adj_list", x.true_adj_list),
+                            f.field("anti_adj_list", x.anti_adj_list),
+                            f.field("labels", x.labels),
+                            f.field("labelling", x.labelling));
+      }
       friend std::ostream &operator<<(std::ostream &os, const SmallGraph &p)
       {
         os << p.to_string();
@@ -467,7 +506,7 @@ namespace Peregrine
         return bliss_graph()->cmp(*other.bliss_graph()) == 0;
       }
   };
-
+  
   class AnalyzedPattern
   {
     public:
@@ -506,7 +545,33 @@ namespace Peregrine
       SmallGraph rbi_v;
 
       bool is_star = false;
-
+      // type_id_t type() const noexcept {
+      //   return type_id_v<AnalyzedPattern>;
+      // }
+      template <class Inspector>
+      friend bool inspect(Inspector& f, AnalyzedPattern& x) {
+        return f.object(x).fields(f.field("query_graph", x.query_graph), 
+                              f.field("vgs", x.vgs),
+                              f.field("qs", x.qs),
+                              f.field("cond_adj", x.cond_adj),
+                              f.field("conditions", x.conditions),
+                              f.field("aut_map", x.aut_map),
+                              f.field("nautsets", x.nautsets),
+                              f.field("ncore_vertices", x.ncore_vertices), 
+                              f.field("anti_vertices", x.anti_vertices),
+                              f.field("vmap", x.vmap),
+                              f.field("global_order", x.global_order),
+                              f.field("qo_book", x.qo_book),
+                              f.field("lower_bounds", x.lower_bounds),
+                              f.field("upper_bounds", x.upper_bounds),
+                              f.field("sibling_groups", x.sibling_groups),
+                              f.field("check_sibg_bound", x.check_sibg_bound),
+                              f.field("order_groups", x.order_groups),
+                              f.field("candidate_idxs", x.candidate_idxs),
+                              f.field("indsets", x.indsets),
+                              f.field("rbi_v", x.rbi_v),
+                              f.field("is_star", x.is_star));
+      }
       AnalyzedPattern() {}
 
       AnalyzedPattern(const SmallGraph &p)
