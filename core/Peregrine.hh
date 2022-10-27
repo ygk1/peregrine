@@ -97,6 +97,8 @@ namespace Peregrine
     DataGraph *data_graph;
     std::atomic<uint64_t> task_ctr(0);
     std::atomic<uint64_t> gcount(0);
+    uint32_t start_idx(0);
+    uint32_t processes(1);
   }
 
   struct flag_t { bool on, working; };
@@ -162,8 +164,9 @@ namespace Peregrine
 
     uint64_t lcount = 0;
 
-    uint64_t task = 0;
-    while ((task = Context::task_ctr.fetch_add(1, std::memory_order_relaxed) + 1) <= num_tasks)
+    uint64_t task = Context::start_idx;
+    //std:: cout<<"Processes = "<<Context::processes<<" Start idx = "<<Context::task_ctr<<std::endl;
+    while ((task = Context::task_ctr.fetch_add(Context::processes, std::memory_order_relaxed) + 1) <= num_tasks)
     {
       uint32_t v = (task-1) / vgs_count + 1;
       uint32_t vgsi = task % vgs_count;
@@ -1037,10 +1040,12 @@ namespace Peregrine
 
   template <typename DataGraphT>
   std::vector<std::pair<SmallGraph, uint64_t>>
-  count(DataGraphT &&data_graph, const std::vector<SmallGraph> &patterns, uint32_t nworkers, uint32_t nprocesses=1)
+  count(DataGraphT &&data_graph, const std::vector<SmallGraph> &patterns, uint32_t nworkers, uint32_t nprocesses=1, uint32_t start_task=0)
   {
     // initialize
-    
+    Context::start_idx = start_task;
+    Context::processes = nprocesses;
+    Context::task_ctr = start_task;
     std::vector<std::pair<SmallGraph, uint64_t>> results;
     if (patterns.empty()) return results;
 
@@ -1125,7 +1130,7 @@ namespace Peregrine
     for (const auto &p : new_patterns)
     {
       // reset state
-      Context::task_ctr = 0;
+      Context::task_ctr = start_task;
       Context::gcount = 0;
 
       // set new pattern
