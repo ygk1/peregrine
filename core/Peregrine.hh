@@ -136,7 +136,7 @@ namespace Peregrine
     uint64_t num_tasks = num_vertices * vgs_count;
 
     uint64_t task = 0;
-    while ((task = Context::task_ctr.fetch_add(1, std::memory_order_relaxed) + 1) <= num_tasks)
+    while ((task = Context::task_ctr.fetch_add(Context::processes, std::memory_order_relaxed) + 1) <= num_tasks)
     {
       uint32_t v = (task-1) / vgs_count + 1;
       uint32_t vgsi = task % vgs_count;
@@ -467,14 +467,17 @@ namespace Peregrine
   match(DataGraphT &&data_graph,
       const std::vector<SmallGraph> &patterns,
       uint32_t nworkers,
-      PF &&process,
-      VF viewer = default_viewer<GivenAggValueT>)
+      PF &&process,uint32_t nprocesses=1, 
+      uint32_t start_task=0,
+      VF viewer = default_viewer<GivenAggValueT>
+      )
   {
     if (patterns.empty())
     {
       return {};
     }
-
+    Context::start_idx = start_task;
+    Context::processes = nprocesses;
     // automatically wrap trivial types so they have .reset() etc
     constexpr bool should_be_wrapped = std::is_trivial<GivenAggValueT>::value;
     using AggValueT = typename std::conditional<should_be_wrapped,
@@ -616,7 +619,7 @@ namespace Peregrine
     for (const auto &p : patterns)
     {
       // reset state
-      Context::task_ctr = 0;
+      Context::task_ctr = Context::start_idx;
 
       // set new pattern
       dg->set_rbi(p);
@@ -771,7 +774,7 @@ namespace Peregrine
     for (const auto &p : patterns)
     {
       // reset state
-      Context::task_ctr = 0;
+      Context::task_ctr = Context::start_idx;
 
       // set new pattern
       dg->set_rbi(p);
@@ -916,7 +919,7 @@ namespace Peregrine
     for (const auto &p : patterns)
     {
       // reset state
-      Context::task_ctr = 0;
+      Context::task_ctr = Context::start_idx;
 
       // set new pattern
       dg->set_rbi(p);
@@ -1045,7 +1048,7 @@ namespace Peregrine
     // initialize
     Context::start_idx = start_task;
     Context::processes = nprocesses;
-    Context::task_ctr = start_task;
+    //Context::task_ctr = start_task;
     std::vector<std::pair<SmallGraph, uint64_t>> results;
     if (patterns.empty()) return results;
 

@@ -17,11 +17,17 @@ core/roaring.o: core/roaring/roaring.c
 fsm: apps/fsm.cc $(OBJ) core/roaring.o bliss
 	$(CC) apps/fsm.cc $(OBJ) core/roaring.o -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)
 
+fsm_distributed: apps/fsm_distributed.cc $(OBJ) core/roaring.o bliss
+	$(CC) apps/fsm_distributed.cc $(OBJ) core/roaring.o -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)
+
 existence-query: apps/existence-query.cc $(OBJ) bliss
 	$(CC) apps/existence-query.cc $(OBJ) -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)
 
 enumerate: apps/enumerate.cc $(OBJ) bliss
 	$(CC) apps/enumerate.cc $(OBJ) -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)
+
+enumerate_distributed: apps/enumerate_distributed.cc $(OBJ) bliss
+	$(CC) apps/enumerate_distributed.cc $(OBJ) -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)
 
 count: apps/count.cc $(OBJ) bliss
 	$(CC) apps/count.cc $(OBJ) -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)

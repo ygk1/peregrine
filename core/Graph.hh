@@ -46,6 +46,8 @@ typedef std::pair<Peregrine::SmallGraph, uint64_t> result;
 CAF_BEGIN_TYPE_ID_BLOCK(Peregrine, first_custom_type_id)
     CAF_ADD_ATOM(Peregrine, count_atom)
     CAF_ADD_ATOM(Peregrine, count_atom_str)
+    CAF_ADD_ATOM(Peregrine, match_atom)
+    CAF_ADD_ATOM(Peregrine, match_atom_str)
     CAF_ADD_TYPE_ID(Peregrine, (std::variant<count_atom,count_atom_str>))
     CAF_ADD_TYPE_ID(Peregrine, (Peregrine::SmallGraph))
     //CAF_ADD_TYPE_ID(Peregrine, (Peregrine::DataGraph))

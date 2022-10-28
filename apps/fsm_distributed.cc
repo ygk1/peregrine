@@ -8,7 +8,6 @@
 #include <cassert>
 #include <functional>
 #include <iostream>
-#include <thread>
 #include <sstream>
 // #include "caf/actor_ostream.hpp"
 // #include "caf/actor_system.hpp"
@@ -32,11 +31,8 @@ using namespace Peregrine;
 
 
 namespace{
-auto t1 = utils::get_timestamp();
-auto t2 = utils::get_timestamp();
 double time_taken = 0.0;
 uint32_t number_of_server = 0;
-uint32_t done_server = 0;
 std::vector<uint64_t> pattern_count;
 bool is_directory(const std::string &path)
 {
@@ -49,7 +45,7 @@ behavior count_act(event_based_actor* self){
   //std::cout <<"spawned" <<std::endl;
   self->set_default_handler(print_and_drop);
   return{
-    [=](count_atom, std::string data_graph, std::string pattern_name, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
+    [=](match_atom, std::string data_graph, std::vector<uint64_t> pattern_support, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
       std::cout<<"Counting\n"; SmallGraph G(data_graph); 
       std::vector<Peregrine::SmallGraph> patterns;
       if (auto end = pattern_name.rfind("motifs"); end != std::string::npos)
@@ -68,17 +64,21 @@ behavior count_act(event_based_actor* self){
       {
         patterns.emplace_back(pattern_name);
       }
+
+      const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, 1); };
       std::vector<uint64_t> counts;
-      std::vector<std::pair<SmallGraph, uint64_t>> res = count(G,patterns, nworkers, nprocesses, start_task);
+      std::vector<std::pair<SmallGraph, uint64_t>> res = match<Pattern, uint64_t, AT_THE_END, UNSTOPPABLE>(G,patterns, nworkers, process, default_viewer<GivenAggValueT>,nprocesses, start_task);
       std::cout << "Result size = " <<sizeof(res)<< std::endl;
       for (const auto &[p, v] : res)
       {
         std::cout << p << ": " << (int64_t)v << std::endl;
         counts.emplace_back(v);
       }
+      std::string a("Done!\n");
+      std::cout<<"Size of message to be sent "<< a.size()<<std::endl;
       return counts;
             },
-    [=](count_atom_str, std::string data_graph_name, std::string pattern_name, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){ 
+    [=](match_atom_str, std::string data_graph_name, std::string pattern_name, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){ 
       std::cout<<"Counting 2\n"; 
       std::vector<Peregrine::SmallGraph> patterns;
       if (auto end = pattern_name.rfind("motifs"); end != std::string::npos)
@@ -97,24 +97,27 @@ behavior count_act(event_based_actor* self){
       {
         patterns.emplace_back(pattern_name);
       }
+
+      const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, 1); };
       std::vector<uint64_t> counts;
-      std::vector<std::pair<SmallGraph, uint64_t>> res = count(data_graph_name,patterns, nworkers, nprocesses, start_task);
+      std::vector<std::pair<SmallGraph, uint64_t>> res =  match<Pattern, uint64_t, AT_THE_END, UNSTOPPABLE>(data_graph_name,patterns, nworkers, process,default_viewer<GivenAggValueT>,nprocesses, start_task);
       std::cout << "Result size = " <<sizeof(res)<< std::endl;
       for (const auto &[p, v] : res)
       {
         std::cout << p << ": " << (int64_t)v << std::endl;
         counts.emplace_back(v);
       }
-      
+     std::string a("Done!\n");
+      std::cout<<"Size of message to be sent "<< a.size()<<std::endl;
       return counts;
             },
   };
 }
 
 struct task {
-  std::variant<count_atom, count_atom_str> op;
+  std::variant<match_atom, match_atom_str> op;
   std::string data_graph; 
-  std::string patterns; 
+  std::vector<uint64_t> pattern_support; 
   uint32_t nworkers;
   uint32_t nprocesses;
   uint32_t start_task;
@@ -162,11 +165,11 @@ behavior init(stateful_actor<state>* self) {
 }
 behavior unconnected(stateful_actor<state>* self) {
   return {
-    [=](count_atom op, std::string data_graph,  std::string patterns, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
-       // self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
+    [=](match_atom op, std::string data_graph,  std::vector<uint64_t> pattern_support, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
+        //self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
     },
-    [=](count_atom_str op, std::string data_graph, std::string patterns, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
-       // self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
+    [=](match_atom_str op, std::string data_graph, std::vector<uint64_t> pattern_support, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
+        //self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
     },
     [=](connect_atom, const std::string& host, uint16_t port) {
       connecting(self, host, port);
@@ -197,7 +200,7 @@ void connecting(stateful_actor<state>* self,  const std::string& host, uint16_t 
           return;
         }
         aout(self) << "*** successfully connected to server" << std::endl;
-        //number_of_server++;
+        number_of_server++;
         //self->state.current_server = serv;
         self->state.current_server = serv;
         auto hdl = actor_cast<actor>(serv);
@@ -212,7 +215,7 @@ void connecting(stateful_actor<state>* self,  const std::string& host, uint16_t 
 }
 behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
 
-  auto send_task = [=](auto op,std::string data_graph, std::string patterns, uint32_t nthreads, uint32_t nNodes, uint32_t start_task){    
+  auto send_task = [=](auto op,std::string data_graph, std::vector<uint64_t> pattern_support, uint32_t nthreads, uint32_t nNodes, uint32_t start_task){    
     self->request(server,infinite, op, data_graph, patterns, nthreads, nNodes, start_task)
       .then(
         // [=](std::vector<std::pair<SmallGraph, uint64_t>> res){
@@ -229,11 +232,6 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
               pattern_count[i]+=v;
               i++;
             }
-            
-            std::cout<<"Results from server received from server "<<done_server<<std::endl <<std::flush;
-            done_server++;
-            if(done_server==number_of_server)
-              t2 = utils::get_timestamp();
         },
         // [=](std::string res){
         //   std::cout<<res<<"\n";
@@ -252,8 +250,8 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
   }
   self->state.tasks.clear();
   return {
-    [=](count_atom op, std::string data_graph, std::string patterns, uint32_t nthreads, uint32_t nNodes, uint32_t start_task) { send_task(op, data_graph, patterns, nthreads, nNodes, start_task); },
-    [=](count_atom_str op, std::string data_graph, std::string patterns, uint32_t nthreads, uint32_t nNodes, uint32_t start_task) {  send_task(op, data_graph, patterns, nthreads, nNodes, start_task); },
+    [=](match_atom op, std::string data_graph, std::vector<uint64_t> pattern_support, uint32_t nthreads, uint32_t nNodes, uint32_t start_task) { send_task(op, data_graph, patterns, nthreads, nNodes, start_task); },
+    [=](match_atom_str op, std::string data_graph, std::vector<uint64_t> pattern_support, uint32_t nthreads, uint32_t nNodes, uint32_t start_task) {  send_task(op, data_graph, patterns, nthreads, nNodes, start_task); },
     [=](connect_atom, const std::string& host, uint16_t port) {
       connecting(self, host, port);
     },
@@ -271,26 +269,8 @@ void count_client(actor_system& system, const config& cfg) {
   uint32_t nNodes = (cfg.nNodes);
   uint16_t port = cfg.port;
   std::string host(cfg.host);
-  std::vector<Peregrine::SmallGraph> patterns;
-  if (auto end = pattern_name.rfind("motifs"); end != std::string::npos)
-  {
-    auto k = std::stoul(pattern_name.substr(0, end-1));
-    patterns = Peregrine::PatternGenerator::all(k,
-        Peregrine::PatternGenerator::VERTEX_BASED,
-        Peregrine::PatternGenerator::INCLUDE_ANTI_EDGES);
-  }
-  else if (auto end = pattern_name.rfind("clique"); end != std::string::npos)
-  {
-    auto k = std::stoul(pattern_name.substr(0, end-1));
-    patterns.emplace_back(Peregrine::PatternGenerator::clique(k));
-  }
-  else
-  {
-    patterns.emplace_back(pattern_name);
-  }
-  for (int i=0; i<patterns.size(); i++)
-    pattern_count.emplace_back(0);
-  std::cout<<data_graph_name<<" "<<pattern_name<<" "<<nthreads<<" "<<nNodes<<std::endl;
+  std::vector<Peregrine::SmallGraph> patterns={Peregrine::PatternGenerator::star(2)};
+  
   
   auto usage = [] {
     std::cout << "Usage:" << std::endl
@@ -305,7 +285,9 @@ void count_client(actor_system& system, const config& cfg) {
   
   // auto a3=system.spawn(count_act);
   // auto a2=system.spawn(taskmapping_actor, a3);
+  std::vector<Peregrine::SmallGraph> patterns = {Peregrine::PatternGenerator::star(2)};
   std::vector<std::pair<std::string, std::string>> host_port;
+  std::vector<uint64_t> pattern_support;
   //anon_send(a1, connect_atom_v, cfg.host, cfg.port);
   if (!cfg.host.empty() && cfg.port > 0);
     //anon_send(a1, connect_atom_v, cfg.host, cfg.port);
@@ -316,44 +298,48 @@ void count_client(actor_system& system, const config& cfg) {
   message_handler eval{
     [&](const std::string& cmd) {
       if (cmd == "start"){
-          t1 = utils::get_timestamp();
-          for(const auto &[h, p] : host_port){
+          for(cont auto &[h, p] : host_port){
             char* end = nullptr;
             auto lport = strtoul(p.c_str(), &end, 10);
-            if (end != p.c_str() + p.size())
+            if (end != p.c_str() + arg2.size())
               std::cout << R"(")" << p << R"(" is not an unsigned integer)" << std::endl;
             else if (lport > std::numeric_limits<uint16_t>::max())
               std::cout << R"(")" << p << R"(" > )"
                   << std::numeric_limits<uint16_t>::max() << std::endl;
             else{
               
-              anon_send(a1, connect_atom_v, move(h),
-                        static_cast<uint16_t>(lport));
-              number_of_server++;                
-              if (is_directory(data_graph_name))
-              {
-                std::cout<<"number of server = "<<number_of_server<<std::endl;
-                anon_send(a1, count_atom_str_v,data_graph_name,pattern_name,nthreads,nNodes,(number_of_server-1));
-                //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);
-              }
-              else
-              {
-                //SmallGraph G(data_graph_name);
-                std::cout<<"number of server = "<<number_of_server<<std::endl;
-                anon_send(a1, count_atom_v, data_graph_name , pattern_name, nthreads, nNodes,(number_of_server-1));
-                //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);   
-              }
-              
-               
+                auto t1 = utils::get_timestamp();
+                anon_send(a1, connect_atom_v, move(h),
+                          static_cast<uint16_t>(lport));
                 
-              }
-            
-          }            
-            
-      }
-      else if (cmd == "quit"){
-        done=true;
-      }
+                
+            //               }
+            // } else {
+                
+                if (is_directory(data_graph_name))
+                {
+                  std::cout<<"number of server = "<<number_of_server<<std::endl;
+                  anon_send(a1, match_atom_str_v,data_graph_name,pattern_support,nthreads,nNodes,(number_of_server));
+                  //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);
+                }
+                else
+                {
+                  //SmallGraph G(data_graph_name);
+                  std::cout<<"number of server = "<<number_of_server<<std::endl;
+                  anon_send(a1, match_atom_v, data_graph_name , pattern_support, nthreads, nNodes,(number_of_server));
+                  //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);   
+                }
+                auto t2 = utils::get_timestamp();
+                time_taken += (t2-t1);
+            }
+          if()
+        }
+      if (cmd != "quit")
+        return;
+      anon_send_exit(a1, exit_reason::user_shutdown);
+      done = true;
+      for (int i=0; i<patterns.size(); i++)
+          std::cout << patterns[i] << ": " << (int64_t)pattern_count[i] << std::endl;
       
       
     },
@@ -366,10 +352,9 @@ void count_client(actor_system& system, const config& cfg) {
 
       }
       }
-    };
+    }};
     std::string line;
-    while (!done && (done_server!=nNodes)) {
-      std::getline(std::cin, line);
+    while (!done && std::getline(std::cin, line)) {
       line = trim(std::move(line)); // ignore leading and trailing whitespaces
       std::vector<std::string> words;
       split(words, line, is_any_of(" "), token_compress_on);
@@ -377,17 +362,12 @@ void count_client(actor_system& system, const config& cfg) {
       if (!eval(msg))
         usage();
   }
-    //while(done_server!=nNodes);
-    
   //anon_send(a1, connect_atom_v, host, port);
   
-   time_taken += (t2-t1);
+  
   std::cout<<"End client\n";
-  std::cout<<"Time taken = "<< time_taken/1e6<<"s"<<std::endl;
+  std::cout<<"Communication time taken = "<< time_taken/1e6<<"s"<<std::endl;
   anon_send_exit(a1, exit_reason::user_shutdown);
-  //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-  for (int i=0; i<patterns.size(); i++)
-    std::cout << patterns[i] << ": " << (int64_t)pattern_count[i] << std::endl;
   //anon_send_exit(a1, exit_reason::user_shutdown);
 }
 void count_server(actor_system& system, const config& cfg){
