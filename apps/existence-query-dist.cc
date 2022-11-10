@@ -355,7 +355,7 @@ void count_client(actor_system& system, const config& cfg) {
     while(done_server!=nNodes){
       usleep(1000);
     }
-
+    t2 = utils::get_timestamp();
     
   //anon_send(a1, connect_atom_v, host, port);
   
@@ -364,8 +364,13 @@ void count_client(actor_system& system, const config& cfg) {
   std::cout<<"Time taken = "<< time_taken/1e6<<"s"<<std::endl;
   anon_send_exit(a1, exit_reason::user_shutdown);
   //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
-  for (int i=0; i<patterns.size(); i++)
-    std::cout << patterns[i] << ": " << (int64_t)pattern_count[i] << std::endl;
+  for (int i=0; i<patterns.size(); i++){
+    if(pattern_count[i]>0)
+      std::cout << patterns[i] << ": exists in the data graph" << std::endl;
+    else
+      std::cout << patterns[i] << ": doesn't exist in the data graph" << std::endl;
+    
+    }
   //anon_send_exit(a1, exit_reason::user_shutdown);
 }
 void count_server(actor_system& system, const config& cfg){
