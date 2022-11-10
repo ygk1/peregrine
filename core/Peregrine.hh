@@ -466,8 +466,7 @@ namespace Peregrine
   ResultType<Output, VF, AggKeyT, GivenAggValueT>
   match(DataGraphT &&data_graph,
       const std::vector<SmallGraph> &patterns,
-      uint32_t nworkers,
-      PF &&process,uint32_t nprocesses=1, 
+      PF &&process,uint32_t nworkers,uint32_t nprocesses=1, 
       uint32_t start_task=0,
       VF viewer = default_viewer<GivenAggValueT>
       )

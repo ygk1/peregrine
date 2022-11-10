@@ -23,6 +23,9 @@ fsm_distributed: apps/fsm_distributed.cc $(OBJ) core/roaring.o bliss
 existence-query: apps/existence-query.cc $(OBJ) bliss
 	$(CC) apps/existence-query.cc $(OBJ) -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)
 
+existence-query-dist: apps/existence-query-dist.cc $(OBJ) bliss
+	$(CC) apps/existence-query-dist.cc $(OBJ) -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)
+
 enumerate: apps/enumerate.cc $(OBJ) bliss
 	$(CC) apps/enumerate.cc $(OBJ) -o $(OUTDIR)/$@ $(BLISS_LDFLAGS) $(LDFLAGS) $(CFLAGS)
 

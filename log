@@ -1,0 +1,24 @@
+make -C ./core/bliss-0.73
+make[1]: Entering directory '/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73'
+rm -f libbliss.a
+ar cr libbliss.a defs.o graph.o partition.o orbit.o uintseqhash.o heap.o timer.o utils.o bliss_C.o
+ranlib libbliss.a
+g++-10 -I. -g -Wall --pedantic -O9 -fPIC -o bliss bliss.o defs.o graph.o partition.o orbit.o uintseqhash.o heap.o timer.o utils.o bliss_C.o 
+make[1]: Leaving directory '/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73'
+g++-10 apps/fsm_distributed.cc core/DataGraph.o core/PO.o core/utils.o core/PatternGenerator.o /local-scratch/localhome/ygk1/peregrine/core/showg.o core/roaring.o -o bin//fsm_distributed -L/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73/ -lbliss -L/usr/local/lib -lpthread -latomic -Ltbb2020/lib/intel64/gcc4.8 -ltbb -O3 -std=c++2a -Wall -Wextra -Wpedantic -fPIC -fconcepts -I/local-scratch/localhome/ygk1/peregrine/core/ -Itbb2020/include -lcaf_core -lcaf_io
+make -C ./core/bliss-0.73
+make[1]: Entering directory '/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73'
+rm -f libbliss.a
+ar cr libbliss.a defs.o graph.o partition.o orbit.o uintseqhash.o heap.o timer.o utils.o bliss_C.o
+ranlib libbliss.a
+g++-10 -I. -g -Wall --pedantic -O9 -fPIC -o bliss bliss.o defs.o graph.o partition.o orbit.o uintseqhash.o heap.o timer.o utils.o bliss_C.o 
+make[1]: Leaving directory '/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73'
+g++-10 apps/fsm_distributed.cc core/DataGraph.o core/PO.o core/utils.o core/PatternGenerator.o /local-scratch/localhome/ygk1/peregrine/core/showg.o core/roaring.o -o bin//fsm_distributed -L/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73/ -lbliss -L/usr/local/lib -lpthread -latomic -Ltbb2020/lib/intel64/gcc4.8 -ltbb -O3 -std=c++2a -Wall -Wextra -Wpedantic -fPIC -fconcepts -I/local-scratch/localhome/ygk1/peregrine/core/ -Itbb2020/include -lcaf_core -lcaf_io
+make -C ./core/bliss-0.73
+make[1]: Entering directory '/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73'
+rm -f libbliss.a
+ar cr libbliss.a defs.o graph.o partition.o orbit.o uintseqhash.o heap.o timer.o utils.o bliss_C.o
+ranlib libbliss.a
+g++-10 -I. -g -Wall --pedantic -O9 -fPIC -o bliss bliss.o defs.o graph.o partition.o orbit.o uintseqhash.o heap.o timer.o utils.o bliss_C.o 
+make[1]: Leaving directory '/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73'
+g++-10 apps/fsm_distributed.cc core/DataGraph.o core/PO.o core/utils.o core/PatternGenerator.o /local-scratch/localhome/ygk1/peregrine/core/showg.o core/roaring.o -o bin//fsm_distributed -L/local-scratch/localhome/ygk1/peregrine/core/bliss-0.73/ -lbliss -L/usr/local/lib -lpthread -latomic -Ltbb2020/lib/intel64/gcc4.8 -ltbb -O3 -std=c++2a -Wall -Wextra -Wpedantic -fPIC -fconcepts -I/local-scratch/localhome/ygk1/peregrine/core/ -Itbb2020/include -lcaf_core -lcaf_io

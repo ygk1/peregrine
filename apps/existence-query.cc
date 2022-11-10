@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
 
   const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, true); a.stop(); };
 
-  std::vector<std::pair<Peregrine::SmallGraph, bool>> results = Peregrine::match<Peregrine::Pattern, bool, Peregrine::ON_THE_FLY, Peregrine::STOPPABLE>(data_graph_name, patterns, nthreads, process);
+  std::vector<std::pair<Peregrine::SmallGraph, bool>> results = Peregrine::match<Peregrine::Pattern, bool, Peregrine::ON_THE_FLY, Peregrine::STOPPABLE>(data_graph_name, patterns, process, nthreads);
 
   std::cout << display_name;
   if (results.front().second) std::cout << " exists in " << data_graph_name << std::endl;
