@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
   const std::string data_graph_name(argv[1]);
   const std::string pattern_name(argv[2]);
   size_t nthreads = argc < 4 ? 1 : std::stoi(argv[3]);
-
+  auto t1 = utils::get_timestamp();
   std::vector<Peregrine::SmallGraph> patterns;
   if (auto end = pattern_name.rfind("motifs"); end != std::string::npos)
   {
@@ -63,6 +63,7 @@ int main(int argc, char *argv[])
   {
     std::cout << p << ": " << v << std::endl;
   }
-
+  auto t2 = utils::get_timestamp();
+  std::cout << " Total time " << (t2-t1)/1e6 << std::endl;
   return 0;
 }

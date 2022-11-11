@@ -228,7 +228,8 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
                 done_server=number_of_server;
               i++;
             }
-            done_server++;
+            if(done_server<number_of_server)
+              done_server++;
             std::cout<<"Results from server received from server "<<done_server<<std::endl <<std::flush;
             t4 = utils::get_timestamp();
             sync_time_taken += (t4-t3);

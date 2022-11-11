@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
   size_t nthreads = argc < 4 ? 1 : std::stoi(argv[3]);
 
   std::vector<Peregrine::SmallGraph> patterns;
-
+  auto t1 = utils::get_timestamp();
   std::string display_name;
   if (auto end = pattern_name.rfind("clique"); end != std::string::npos)
   {
@@ -42,10 +42,10 @@ int main(int argc, char *argv[])
   const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, true); a.stop(); };
 
   std::vector<std::pair<Peregrine::SmallGraph, bool>> results = Peregrine::match<Peregrine::Pattern, bool, Peregrine::ON_THE_FLY, Peregrine::STOPPABLE>(data_graph_name, patterns, process, nthreads);
-
+  auto t2 = utils::get_timestamp();
   std::cout << display_name;
   if (results.front().second) std::cout << " exists in " << data_graph_name << std::endl;
   else std::cout << " doesn't exist in " << data_graph_name << std::endl;
-
+  std::cout << " Total time " << (t2-t1)/1e6 << std::endl;
   return 0;
 }
