@@ -135,7 +135,7 @@ namespace Peregrine
     uint32_t num_vertices = dg->get_vertex_count();
     uint64_t num_tasks = num_vertices * vgs_count;
 
-    uint64_t task = 0;
+    uint64_t task = Context::start_idx;
     while ((task = Context::task_ctr.fetch_add(Context::processes, std::memory_order_relaxed) + 1) <= num_tasks)
     {
       uint32_t v = (task-1) / vgs_count + 1;

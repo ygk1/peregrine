@@ -70,7 +70,7 @@ behavior count_act(event_based_actor* self){
 
       const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, 1); };
       std::vector<uint64_t> counts;
-      std::vector<std::pair<SmallGraph, uint64_t>> res = match<Pattern, uint64_t, AT_THE_END, UNSTOPPABLE>(G,patterns, nworkers, process,nprocesses, start_task);
+      std::vector<std::pair<SmallGraph, uint64_t>> res = match<Pattern, uint64_t, AT_THE_END, UNSTOPPABLE>(G,patterns, process, nworkers, nprocesses, start_task);
       std::cout << "Result size = " <<sizeof(res)<< std::endl;
       for (const auto &[p, v] : res)
       {
@@ -103,7 +103,7 @@ behavior count_act(event_based_actor* self){
 
       const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, 1); };
       std::vector<uint64_t> counts;
-      std::vector<std::pair<SmallGraph, uint64_t>> res =  match<Pattern, uint64_t, AT_THE_END, UNSTOPPABLE>(data_graph_name,patterns, nworkers, process,nprocesses, start_task);
+      std::vector<std::pair<SmallGraph, uint64_t>> res =  match<Pattern, uint64_t, AT_THE_END, UNSTOPPABLE>(data_graph_name,patterns,process, nworkers, nprocesses, start_task);
       std::cout << "Result size = " <<sizeof(res)<< std::endl;
       for (const auto &[p, v] : res)
       {

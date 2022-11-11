@@ -34,7 +34,12 @@ using namespace Peregrine;
 namespace{
 auto t1 = utils::get_timestamp();
 auto t2 = utils::get_timestamp();
+auto t3 = utils::get_timestamp();
+auto t4 = utils::get_timestamp();
+
 double time_taken = 0.0;
+double sync_time_taken = 0.0;
+
 uint32_t number_of_server = 0;
 uint32_t done_server = 0;
 std::vector<uint64_t> pattern_count;
@@ -222,9 +227,10 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
         //     }
         // },
         [=](std::vector<uint64_t> res){
+          t3 = utils::get_timestamp();
+          
           done_server++;
-          if(done_server==number_of_server)
-            t2 = utils::get_timestamp();
+          
           int i=0;
           for (const auto &v : res)
             {
@@ -234,6 +240,10 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
             }
             
             std::cout<<"Results from server received from server "<<done_server<<std::endl <<std::flush;
+            t4 = utils::get_timestamp();
+            if(done_server==number_of_server)
+              t2 = utils::get_timestamp();
+            sync_time_taken +=(t4-t3);
             
         },
         // [=](std::string res){
@@ -386,6 +396,7 @@ void count_client(actor_system& system, const config& cfg) {
    time_taken += (t2-t1);
   std::cout<<"End client\n";
   std::cout<<"Time taken = "<< time_taken/1e6<<"s"<<std::endl;
+   std::cout<<"Sync Time taken = "<< sync_time_taken/1e6<<"s"<<std::endl;
   anon_send_exit(a1, exit_reason::user_shutdown);
   //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
   for (int i=0; i<patterns.size(); i++)

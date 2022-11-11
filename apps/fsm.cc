@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 
     std::vector<Peregrine::SmallGraph> patterns = {Peregrine::PatternGenerator::star(2)};
     patterns.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
-    auto psupps = Peregrine::match<Peregrine::Pattern, DiscoveryDomain<1>, Peregrine::AT_THE_END, Peregrine::UNSTOPPABLE>(dg, patterns, nthreads, process, view);
+    auto psupps = Peregrine::match<Peregrine::Pattern, DiscoveryDomain<1>, Peregrine::AT_THE_END, Peregrine::UNSTOPPABLE>(dg, patterns, process,nthreads, 1, 0, view);
     for (const auto &[p, supp] : psupps)
     {
       if (supp >= threshold)
@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
   {
     freq_patterns.clear();
     supports.clear();
-    auto psupps = Peregrine::match<Peregrine::Pattern, Domain, Peregrine::AT_THE_END, Peregrine::UNSTOPPABLE>(dg, patterns, nthreads, process, view);
+    auto psupps = Peregrine::match<Peregrine::Pattern, Domain, Peregrine::AT_THE_END, Peregrine::UNSTOPPABLE>(dg, patterns, process, nthreads, 1, 0,view);
 
     for (const auto &[p, supp] : psupps)
     {
