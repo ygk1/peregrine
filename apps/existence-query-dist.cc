@@ -260,6 +260,8 @@ void count_client(actor_system& system, const config& cfg) {
   std::string host(cfg.host);
   std::vector<Peregrine::SmallGraph> patterns;
   number_of_server=nNodes;
+  std::vector<std::string> hosts;
+  std::vector<uint16_t>ports;
   if (auto end = pattern_name.rfind("clique"); end != std::string::npos)
   {
     auto k = std::stoul(pattern_name.substr(0, end-1));
@@ -310,7 +312,9 @@ void count_client(actor_system& system, const config& cfg) {
       if (arg0 == "connect") {
         host_port.emplace_back(arg1, arg2);
         //a1=system.spawn(init);
-        
+        char* end=nullptr;
+        hosts.emplace_back(arg1);
+        ports.emplace_back(strtoul(arg2.c_str(), &end, 10));
 
       }
       }
@@ -326,40 +330,34 @@ void count_client(actor_system& system, const config& cfg) {
         usage();
   }
     t1 = utils::get_timestamp();
-    for(const auto &[h, p] : host_port){
-      char* end = nullptr;
-      auto lport = strtoul(p.c_str(), &end, 10);
-      if (end != p.c_str() + p.size())
-        std::cout << R"(")" << p << R"(" is not an unsigned integer)" << std::endl;
-      else if (lport > std::numeric_limits<uint16_t>::max())
-        std::cout << R"(")" << p << R"(" > )"
-            << std::numeric_limits<uint16_t>::max() << std::endl;
-      else{
+    for(int i=0; i<hosts.size(); i++){
+      
+      
         
-        anon_send(a1, connect_atom_v, move(h),
-                  static_cast<uint16_t>(lport));
-        //number_of_server++;                
-        if (is_directory(data_graph_name))
-        {
-          std::cout<<"number of server = "<<number_of_server<<std::endl;
-          anon_send(a1, match_atom_str_v,data_graph_name,pattern_name,nthreads,nNodes,(number_of_server-1));
-          //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);
-        }
-        else
-        {
-          //SmallGraph G(data_graph_name);
-          std::cout<<"number of server = "<<number_of_server<<std::endl;
-          anon_send(a1, match_atom_v, data_graph_name , pattern_name, nthreads, nNodes,(number_of_server-1));
-          //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);   
-        }
+      anon_send(a1, connect_atom_v, hosts[i],
+                      ports[i]);
+      //number_of_server++;                
+      if (is_directory(data_graph_name))
+      {
+        std::cout<<"number of server = "<<number_of_server<<std::endl;
+        anon_send(a1, match_atom_str_v,data_graph_name,pattern_name,nthreads,nNodes,(number_of_server-1));
+        //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);
+      }
+      else
+      {
+        //SmallGraph G(data_graph_name);
+        std::cout<<"number of server = "<<number_of_server<<std::endl;
+        anon_send(a1, match_atom_v, data_graph_name , pattern_name, nthreads, nNodes,(number_of_server-1));
+        //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);   
+      }
         
         //anon_send_exit(a1, exit_reason::user_shutdown);
           
-        }
+        
       
     }  
     while(done_server!=number_of_server){
-      usleep(1000);
+      usleep(100);
     }
     
     t2 = utils::get_timestamp();
