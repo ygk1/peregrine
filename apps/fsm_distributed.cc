@@ -15,6 +15,7 @@
 // #include "caf/event_based_actor.hpp"
 #include "caf/all.hpp"
 #include "caf/io/all.hpp"
+#include "caf/openssl/all.hpp"
 #include "Peregrine.hh"
 
 #include "Domain.hh"
@@ -33,6 +34,7 @@ using namespace Peregrine;
 
 
 namespace{
+
 auto t1 = utils::get_timestamp();
 auto t2 = utils::get_timestamp();
 double time_taken = 0.0;
@@ -41,6 +43,7 @@ uint32_t done_server = 0;
 std::vector<uint64_t> pattern_count;
 std::vector<SmallGraph> global_server_pattern;
 std::vector<std::pair<SmallGraph,uint64_t>> pattern_supports;
+std::vector<std::pair<SmallGraph, uint64_t>> patterns_compile;
 bool is_directory(const std::string &path)
 {
    struct stat statbuf;
@@ -56,7 +59,7 @@ behavior count_act(event_based_actor* self){
           const auto view = [](auto &&v) { return v.get_support(); };
           std::vector<Peregrine::SmallGraph> freq_patterns;
           Peregrine::DataGraph dg(data_graph);
-          
+          //const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, 1); };
           if(step==0){
             global_server_pattern.clear();
             pattern_supports.clear();
@@ -64,19 +67,23 @@ behavior count_act(event_based_actor* self){
             uint32_t merge = cm.pattern[0] == cm.pattern[1] ? 0 : 1;
             a.map(cm.pattern, std::make_pair(cm.mapping, merge));
               };
-            global_server_pattern = {Peregrine::PatternGenerator::star(2)};
+            global_server_pattern = {Peregrine::PatternGenerator::all(2, !edge_strategy, true)};
             global_server_pattern.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
-            auto psupps = match<Pattern, DiscoveryDomain<1>, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process,nworkers, nprocesses,start_task, view);
+            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, DiscoveryDomain<1>, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process,nworkers, nprocesses,start_task, view);
             std::vector<uint64_t> result;
+         
             for (const auto &[p, v] : psupps)
               {
                 std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
                 pattern_supports.emplace_back(std::pair(p,v));
+               
+              
               }
-            std::cout<<"loop 0\n";
+            
             result.emplace_back(result.size());
-            return psupps;
+          
+           return pattern_supports;
           }
           else{
             
@@ -91,16 +98,18 @@ behavior count_act(event_based_actor* self){
             }
             pattern_supports.clear();
             global_server_pattern =  Peregrine::PatternGenerator::extend(freq_patterns, edge_strategy);
-            auto psupps = match<Pattern, Domain, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process, nworkers, nprocesses,start_task, view);
+            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, Domain, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process, nworkers, nprocesses,start_task, view);
             std::vector<uint64_t> result;
+           
             for (const auto &[p, v] : psupps)
               {
                 std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
                 pattern_supports.emplace_back(std::pair(p,v));
+               
               }
             result.emplace_back(result.size());
-            return psupps;
+           return pattern_supports;
             }
             //return  std::vector<uint64_t>(0);
             },
@@ -108,7 +117,7 @@ behavior count_act(event_based_actor* self){
           const auto view = [](auto &&v) { return v.get_support(); };
           std::vector<Peregrine::SmallGraph> freq_patterns;
           Peregrine::DataGraph dg(data_graph_name);
-          
+          //const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, 1); };
           if(step==0){
             global_server_pattern.clear();
             pattern_supports.clear();
@@ -116,19 +125,22 @@ behavior count_act(event_based_actor* self){
             uint32_t merge = cm.pattern[0] == cm.pattern[1] ? 0 : 1;
             a.map(cm.pattern, std::make_pair(cm.mapping, merge));
               };
-            global_server_pattern = {Peregrine::PatternGenerator::star(2)};
+             global_server_pattern = {Peregrine::PatternGenerator::all(2, !edge_strategy, true)};
             global_server_pattern.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
-            auto psupps = match<Pattern, DiscoveryDomain<1>, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process,nworkers, nprocesses,start_task, view);
+            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, DiscoveryDomain<1>, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process,nworkers, nprocesses,start_task, view);
             std::vector<uint64_t> result;
+           
             for (const auto &[p, v] : psupps)
               {
                 std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
                 pattern_supports.emplace_back(std::pair(p,v));
+               
               }
-            std::cout<<"loop 0\n";
+           
            result.emplace_back(result.size());
-            return psupps;
+          
+           return pattern_supports;
           }
           else{
             
@@ -143,18 +155,21 @@ behavior count_act(event_based_actor* self){
             }
             pattern_supports.clear();
             global_server_pattern =  Peregrine::PatternGenerator::extend(freq_patterns, edge_strategy);
-            auto psupps = match<Pattern, Domain, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process, nworkers, nprocesses,start_task, view);
+            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, Domain, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process, nworkers, nprocesses,start_task, view);
             std::vector<uint64_t> result;
+           
             for (const auto &[p, v] : psupps)
               {
                 std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
                 pattern_supports.emplace_back(std::pair(p,v));
+                
               }
             result.emplace_back(result.size());
-            return psupps;
+            
+           return pattern_supports;
             }
-          //return  std::vector<uint64_t>(0);
+           //return  std::vector<uint64_t> result;
             },
   };
 }
@@ -268,51 +283,32 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
   auto send_task = [=](auto op,std::string data_graph, std::vector<uint64_t> patterns, uint32_t step, bool edge_strategy,uint32_t nthreads, uint32_t nNodes, uint32_t start_task){    
     self->request(server,infinite, op, data_graph, patterns, step, edge_strategy,nthreads, nNodes, start_task)
       .then(
-        // [=](std::vector<uint64_t> res){  
-          
-          
-        //   uint64_t size = res[res.size()-1];
-        //   if(done_server==0){
-        //     pattern_count.clear();
-        //     for(int i=0; i<size; i++){
-              
-        //       pattern_count.push_back(0);
-        //     }
-        //   }
-        //   int i=0;
-        //   for (const auto &v : res)
-        //     {
-        //       std::cout<<" message from server " << v << std::endl;
-        //       pattern_count[i]+=v;
-        //       i++;
-        //     }
-        //    done_server++;
-        //    std::cout<<"Got reply from server "<<done_server<<" Step "<<pattern_count.size()<<std::endl;
-        // },
-        [=](std::vector<std::pair<SmallGraph, uint64_t>> res){  
+        
+        [=](std::vector<std::pair<SmallGraph,uint64_t>> res){  
           
           
           uint64_t size = res.size();
           if(done_server==0){
             pattern_count.clear();
-            for(int i=0; i<size; i++){
+            patterns_compile.clear();
+            for(uint64_t i=0; i<size; i++){
               
               pattern_count.push_back(0);
             }
           }
           int i=0;
-          for (const auto &[k,v] : res)
+          for (const auto &[p,v] : res)
             {
-              std::cout<<" message from server " << v << std::endl;
+              patterns_compile.emplace_back(std::pair(p,v)); 
               pattern_count[i]+=v;
               i++;
+              std::cout << p << ": " << (int64_t)v << std::endl;
             }
            done_server++;
            std::cout<<"Got reply from server "<<done_server<<" Step "<<pattern_count.size()<<std::endl;
         },
-        // [=](std::string res){
-        //   std::cout<<res<<"\n";
-        // },  
+        
+         
         [=](const error& err){
           // simply try again by enqueueing the task to the mailbox again
           std::cout<<"Didn't get reply from server: "<< to_string(err)<<std::endl;
@@ -349,7 +345,7 @@ void count_client(actor_system& system, const config& cfg) {
   bool edge_strategy = (cfg.edge_strategy)? Peregrine::PatternGenerator::EDGE_BASED: Peregrine::PatternGenerator::VERTEX_BASED;
   std::string host(cfg.host);
   number_of_server = nNodes;
-  std::vector<Peregrine::SmallGraph> patterns={Peregrine::PatternGenerator::star(2)};
+  
   std::vector<Peregrine::SmallGraph> freq_patterns;
   std::vector<uint64_t> freq_counts;
   std::vector<std::string> hosts;
@@ -364,10 +360,11 @@ void count_client(actor_system& system, const config& cfg) {
   usage();
   bool done = false;
   auto a1=system.spawn(init);
+  auto a2=system.spawn(count_act);
   scoped_actor self{system};
   // auto a3=system.spawn(count_act);
   // auto a2=system.spawn(taskmapping_actor, a3);
-  patterns.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
+  //patterns.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
   std::vector<std::pair<std::string, std::string>> host_port;
   //pattern_count.emplace_back(0);
   uint32_t step=0;
@@ -384,8 +381,8 @@ void count_client(actor_system& system, const config& cfg) {
           
           t1 = utils::get_timestamp();
           freq_counts.emplace_back(0);
-          patterns.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
-          while (step < number_of_fsm && !patterns.empty())
+          //patterns.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
+          while (step < number_of_fsm)
           {
             
             for(int i=0; i<hosts.size(); i++)
@@ -419,7 +416,7 @@ void count_client(actor_system& system, const config& cfg) {
             done_server = 0;
             step += 1;
             freq_counts.clear();
-            std::cout<<"Going to loop again "<<pattern_count.size()<<std::endl;
+            
             for(int i=0; i<pattern_count.size(); i++){
               if(pattern_count[i]>pattern_support)
                 freq_counts.push_back(pattern_count[i]);
@@ -427,7 +424,7 @@ void count_client(actor_system& system, const config& cfg) {
                 freq_counts.push_back(0);
                 //freq_patterns.push_back(patterns[i]);
               }
-              std::cout<<pattern_count[i]<<std::endl;
+              
             }
             std::cout<<"Going to loop again "<<step<<std::endl;
             pattern_count.clear();
@@ -473,12 +470,13 @@ void count_client(actor_system& system, const config& cfg) {
    time_taken += (t2-t1);
   std::cout<<"End client\n";
   std::cout<<"Time taken = "<< time_taken/1e6<<"s"<<std::endl;
+  for (int i=0; i<freq_counts.size(); i++)
+     std::cout<<patterns_compile[i].first<<" : "<< (int64_t)freq_counts[i] << std::endl;
   anon_send_exit(a1, exit_reason::user_shutdown);
   //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
   
   
-  for (int i=0; i<freq_counts.size(); i++)
-     std::cout <<": " << (int64_t)freq_counts[i] << std::endl;
+  
   
   //anon_send(a1, connect_atom_v, host, port);
   
@@ -520,3 +518,33 @@ void caf_main(actor_system& system, const config& cfg)
 } //namespace
 
 CAF_MAIN(id_block::Peregrine, io::middleman)
+
+// self->request(a2,infinite, match_atom_str_v, data_graph_name, freq_counts, step, edge_strategy,nthreads, nNodes, (uint32_t)i)
+//             .receive(
+//             [=](std::vector<std::pair<SmallGraph, uint64_t>> res){  
+              
+              
+//               uint64_t size = res.size();
+//               if(done_server==0){
+//                 pattern_count.clear();
+//                 for(int i=0; i<size; i++){
+                  
+//                   pattern_count.push_back(0);
+//                 }
+//               }
+//               int i=0;
+//               for (const auto &[p,v] : res)
+//                 {
+                  
+//                   pattern_count[i]+=v;
+//                   i++;
+//                 }
+//               done_server++;
+//               std::cout<<"Got reply from local machine "<<done_server<<" Step "<<pattern_count.size()<<std::endl;
+//             },
+//             [=](const error& err){
+//           // simply try again by enqueueing the task to the mailbox again
+//               std::cout<<"Didn't get reply from server: "<< to_string(err)<<std::endl;
+//               //self->send(self, op, data_graph, patterns, nthreads, nNodes);
+            
+//             });

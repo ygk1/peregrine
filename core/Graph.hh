@@ -25,6 +25,7 @@ namespace Peregrine{
   struct PatternGenerator;
   class AnalyzedPattern;
   class DataGraph;
+  class return_vector;
   namespace Graph
   {
     enum Labelling
@@ -34,10 +35,25 @@ namespace Peregrine{
       PARTIALLY_LABELLED,
       DISCOVER_LABELS
     };
+    //std::string to_string(Labelling);
+
+    //bool parse(std::string_view input, Labelling& dest);
+
     template <class Inspector>
     bool inspect(Inspector& f, Labelling& x) {
-      return f.apply(x);
-    }
+      
+          auto get = [&x] { return static_cast<uint8_t>(x); };
+          auto set = [&x](uint8_t val) {
+          if (val < 4) {
+            x = static_cast<Labelling>(val);
+            return true;
+          } else {
+            return false;
+          }
+          };
+          return f.apply(get, set);
+          }
+  
   } // namespace Graph
   
 }
@@ -49,14 +65,16 @@ CAF_BEGIN_TYPE_ID_BLOCK(Peregrine, first_custom_type_id)
     CAF_ADD_ATOM(Peregrine, match_atom)
     CAF_ADD_ATOM(Peregrine, match_atom_str)
     CAF_ADD_TYPE_ID(Peregrine, (std::variant<count_atom,count_atom_str>))
-    CAF_ADD_TYPE_ID(Peregrine, (Peregrine::SmallGraph))
-    //CAF_ADD_TYPE_ID(Peregrine, (Peregrine::DataGraph))
-    //CAF_ADD_TYPE_ID(Peregrine, (Peregrine::PatternGenerator))
     CAF_ADD_TYPE_ID(Peregrine, (Peregrine::Graph::Labelling))
+    CAF_ADD_TYPE_ID(Peregrine, (Peregrine::SmallGraph))
+    
     CAF_ADD_TYPE_ID(Peregrine, (std::vector<Peregrine::SmallGraph>))
     CAF_ADD_TYPE_ID(Peregrine, (Peregrine::AnalyzedPattern))
     CAF_ADD_TYPE_ID(Peregrine, (std::pair<Peregrine::SmallGraph, uint64_t>))
     CAF_ADD_TYPE_ID(Peregrine, (std::vector<uint64_t>))
+    CAF_ADD_TYPE_ID(Peregrine, (std::vector<uint32_t>))
+    CAF_ADD_TYPE_ID(Peregrine, (std::unordered_map<uint32_t, std::vector<uint32_t>>))
+    
     //CAF_ADD_TYPE_ID(Peregrine, (std::bool))
     CAF_ADD_TYPE_ID(Peregrine, (std::vector<std::pair<Peregrine::SmallGraph, uint64_t>>))
 CAF_END_TYPE_ID_BLOCK(Peregrine)
@@ -65,7 +83,7 @@ namespace Peregrine
 {
   
   // forward declaration to allow friendship with SmallGraph
-  
+ 
   class SmallGraph
   {
     private:
@@ -77,6 +95,10 @@ namespace Peregrine
       std::vector<uint32_t> labels;
       Graph::Labelling labelling = Graph::UNLABELLED;
     public:
+      caf::type_id_t type() const noexcept {
+        return caf::type_id_v<SmallGraph>;
+      }
+
       
       // type_id_t type() const noexcept {
       //   return type_id_v<SmallGraph>;
@@ -1724,5 +1746,19 @@ namespace std
     }
   };
 }
-
+namespace caf{
+static constexpr type_id_t allowed_types[] = {
+    type_id_v<none_t>,
+    type_id_v<Peregrine::SmallGraph>,
+    type_id_v<Peregrine::Graph::Labelling>,
+    type_id_v<std::vector<Peregrine::SmallGraph>>,
+    type_id_v<Peregrine::AnalyzedPattern>,
+    type_id_v<std::pair<Peregrine::SmallGraph, uint64_t>>,
+    type_id_v<std::vector<uint64_t>>,
+    type_id_v<Peregrine::Graph::Labelling>,
+    
+    //CAF_ADD_TYPE_ID(Peregrine, (std::bool))
+   type_id_v<std::vector<std::pair<Peregrine::SmallGraph, uint64_t>>>
+  };
+}
 #endif

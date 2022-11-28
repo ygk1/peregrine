@@ -519,7 +519,7 @@ namespace Peregrine
       std::vector<SmallGraph> single;
       std::vector<SmallGraph> vector;
       std::vector<SmallGraph> multi;
-
+      //std::cout<<"pattern size "<<patterns.size()<<std::endl;
       for (const auto &p : patterns)
       {
         Graph::Labelling l = p.get_labelling();
