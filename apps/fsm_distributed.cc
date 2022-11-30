@@ -40,7 +40,7 @@ auto t2 = utils::get_timestamp();
 double time_taken = 0.0;
 uint32_t number_of_server = 0;
 uint32_t done_server = 0;
-std::vector<uint64_t> pattern_count;
+std::vector<std::pair<SmallGraph,uint64_t>> pattern_count;
 std::vector<SmallGraph> global_server_pattern;
 std::vector<std::pair<SmallGraph,uint64_t>> pattern_supports;
 std::vector<std::pair<SmallGraph, uint64_t>> patterns_compile;
@@ -55,7 +55,7 @@ behavior count_act(event_based_actor* self){
   //std::cout <<"spawned" <<std::endl;
   self->set_default_handler(print_and_drop);
   return{
-    [=](match_atom, std::string data_graph, std::vector<uint64_t> patterns, uint32_t step, bool edge_strategy,uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
+    [=](match_atom, std::string data_graph, std::vector<std::pair<SmallGraph,uint64_t>> patterns, uint32_t step, bool edge_strategy,uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
           const auto view = [](auto &&v) { return v.get_support(); };
           std::vector<Peregrine::SmallGraph> freq_patterns;
           Peregrine::DataGraph dg(data_graph);
@@ -69,7 +69,10 @@ behavior count_act(event_based_actor* self){
               };
             global_server_pattern = {Peregrine::PatternGenerator::all(2, !edge_strategy, true)};
             global_server_pattern.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
-            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, DiscoveryDomain<1>, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process,nworkers, nprocesses,start_task, view);
+            std::vector<std::pair<SmallGraph,uint64_t>> psupp{};
+            if(start_task!=0)
+              return psupp;
+            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, DiscoveryDomain<1>, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process,nworkers, 1,0, view);
             std::vector<uint64_t> result;
          
             for (const auto &[p, v] : psupps)
@@ -92,13 +95,15 @@ behavior count_act(event_based_actor* self){
                   };
             freq_patterns.clear();
             for(int i=0; i<patterns.size(); i++){
-              if(patterns[i]>0){
-                freq_patterns.push_back(pattern_supports[i].first);
-              }
+              freq_patterns.push_back(patterns[i].first);
             }
             pattern_supports.clear();
             global_server_pattern =  Peregrine::PatternGenerator::extend(freq_patterns, edge_strategy);
-            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, Domain, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process, nworkers, nprocesses,start_task, view);
+
+            std::vector<SmallGraph> working_patterns;
+            for (int i=start_task; i<global_server_pattern.size(); i+=nprocesses)
+              working_patterns.push_back(global_server_pattern[i]);
+            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, Domain, AT_THE_END, UNSTOPPABLE>(dg, working_patterns, process, nworkers, 1,0, view);
             std::vector<uint64_t> result;
            
             for (const auto &[p, v] : psupps)
@@ -113,8 +118,8 @@ behavior count_act(event_based_actor* self){
             }
             //return  std::vector<uint64_t>(0);
             },
-    [=](match_atom_str, std::string data_graph_name, std::vector<uint64_t> patterns, uint32_t step, bool edge_strategy,uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){ 
-          const auto view = [](auto &&v) { return v.get_support(); };
+    [=](match_atom_str, std::string data_graph_name, std::vector<std::pair<SmallGraph,uint64_t>> patterns, uint32_t step, bool edge_strategy,uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){ 
+           const auto view = [](auto &&v) { return v.get_support(); };
           std::vector<Peregrine::SmallGraph> freq_patterns;
           Peregrine::DataGraph dg(data_graph_name);
           //const auto process = [](auto &&a, auto &&cm) { a.map(cm.pattern, 1); };
@@ -125,20 +130,24 @@ behavior count_act(event_based_actor* self){
             uint32_t merge = cm.pattern[0] == cm.pattern[1] ? 0 : 1;
             a.map(cm.pattern, std::make_pair(cm.mapping, merge));
               };
-             global_server_pattern = {Peregrine::PatternGenerator::all(2, !edge_strategy, true)};
+            global_server_pattern = {Peregrine::PatternGenerator::all(2, !edge_strategy, true)};
             global_server_pattern.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
-            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, DiscoveryDomain<1>, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process,nworkers, nprocesses,start_task, view);
+            std::vector<std::pair<SmallGraph,uint64_t>> psupp{};
+            if(start_task!=0)
+              return psupp;
+            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, DiscoveryDomain<1>, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process,nworkers, 1,0, view);
             std::vector<uint64_t> result;
-           
+         
             for (const auto &[p, v] : psupps)
               {
                 std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
                 pattern_supports.emplace_back(std::pair(p,v));
                
+              
               }
-           
-           result.emplace_back(result.size());
+            
+            result.emplace_back(result.size());
           
            return pattern_supports;
           }
@@ -149,13 +158,15 @@ behavior count_act(event_based_actor* self){
                   };
             freq_patterns.clear();
             for(int i=0; i<patterns.size(); i++){
-              if(patterns[i]>0){
-                freq_patterns.push_back(pattern_supports[i].first);
-              }
+              freq_patterns.push_back(patterns[i].first);
             }
             pattern_supports.clear();
             global_server_pattern =  Peregrine::PatternGenerator::extend(freq_patterns, edge_strategy);
-            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, Domain, AT_THE_END, UNSTOPPABLE>(dg, global_server_pattern, process, nworkers, nprocesses,start_task, view);
+
+            std::vector<SmallGraph> working_patterns;
+            for (int i=start_task; i<global_server_pattern.size(); i+=nprocesses)
+              working_patterns.push_back(global_server_pattern[i]);
+            std::vector<std::pair<SmallGraph, uint64_t>> psupps = match<Pattern, Domain, AT_THE_END, UNSTOPPABLE>(dg, working_patterns, process, nworkers, 1,0, view);
             std::vector<uint64_t> result;
            
             for (const auto &[p, v] : psupps)
@@ -163,20 +174,19 @@ behavior count_act(event_based_actor* self){
                 std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
                 pattern_supports.emplace_back(std::pair(p,v));
-                
+               
               }
             result.emplace_back(result.size());
-            
            return pattern_supports;
             }
-           //return  std::vector<uint64_t> result;
+            //return  std::vector<uint64_t>(0);
             },
   };
 }
 struct task {
   std::variant<match_atom, match_atom_str> op;
   std::string data_graph; 
-  std::vector<uint64_t> patterns;
+  std::vector<std::pair<SmallGraph,uint64_t>> patterns;
   uint32_t step;
   bool edge_strategy;
   uint32_t nworkers;
@@ -230,10 +240,10 @@ behavior init(stateful_actor<state>* self) {
 }
 behavior unconnected(stateful_actor<state>* self) {
   return {
-    [=](match_atom op, std::string data_graph,  std::vector<uint64_t> patterns, uint32_t step, bool edge_strategy,uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
+    [=](match_atom op, std::string data_graph,  std::vector<std::pair<SmallGraph,uint64_t>> patterns, uint32_t step, bool edge_strategy,uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
         //self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
     },
-    [=](match_atom_str op, std::string data_graph, std::vector<uint64_t> patterns, uint32_t step, bool edge_strategy,uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
+    [=](match_atom_str op, std::string data_graph, std::vector<std::pair<SmallGraph,uint64_t>> patterns, uint32_t step, bool edge_strategy,uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
         //self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
     },
     [=](connect_atom, const std::string& host, uint16_t port) {
@@ -280,7 +290,7 @@ void connecting(stateful_actor<state>* self,  const std::string& host, uint16_t 
 }
 behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
 
-  auto send_task = [=](auto op,std::string data_graph, std::vector<uint64_t> patterns, uint32_t step, bool edge_strategy,uint32_t nthreads, uint32_t nNodes, uint32_t start_task){    
+  auto send_task = [=](auto op,std::string data_graph, std::vector<std::pair<SmallGraph,uint64_t>> patterns, uint32_t step, bool edge_strategy,uint32_t nthreads, uint32_t nNodes, uint32_t start_task){    
     self->request(server,infinite, op, data_graph, patterns, step, edge_strategy,nthreads, nNodes, start_task)
       .then(
         
@@ -291,16 +301,13 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
           if(done_server==0){
             pattern_count.clear();
             patterns_compile.clear();
-            for(uint64_t i=0; i<size; i++){
-              
-              pattern_count.push_back(0);
-            }
+            
           }
           int i=0;
           for (const auto &[p,v] : res)
             {
               patterns_compile.emplace_back(std::pair(p,v)); 
-              pattern_count[i]+=v;
+              pattern_count.emplace_back(std::pair(p,v));
               i++;
               std::cout << p << ": " << (int64_t)v << std::endl;
             }
@@ -323,8 +330,8 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
   }
   self->state.tasks.clear();
   return {
-    [=](match_atom op, std::string data_graph, std::vector<uint64_t> patterns, uint32_t step, bool edge_strategy,uint32_t nthreads, uint32_t nNodes, uint32_t start_task) { send_task(op, data_graph, patterns, step, edge_strategy,nthreads, nNodes, start_task); },
-    [=](match_atom_str op, std::string data_graph, std::vector<uint64_t> patterns, uint32_t step, bool edge_strategy,uint32_t nthreads, uint32_t nNodes, uint32_t start_task) {  send_task(op, data_graph, patterns,  step, edge_strategy, nthreads, nNodes, start_task); },
+    [=](match_atom op, std::string data_graph, std::vector<std::pair<SmallGraph,uint64_t>> patterns, uint32_t step, bool edge_strategy,uint32_t nthreads, uint32_t nNodes, uint32_t start_task) { send_task(op, data_graph, patterns, step, edge_strategy,nthreads, nNodes, start_task); },
+    [=](match_atom_str op, std::string data_graph, std::vector<std::pair<SmallGraph,uint64_t>> patterns, uint32_t step, bool edge_strategy,uint32_t nthreads, uint32_t nNodes, uint32_t start_task) {  send_task(op, data_graph, patterns,  step, edge_strategy, nthreads, nNodes, start_task); },
     [=](connect_atom, const std::string& host, uint16_t port) {
       connecting(self, host, port);
     },
@@ -346,7 +353,7 @@ void count_client(actor_system& system, const config& cfg) {
   std::string host(cfg.host);
   number_of_server = nNodes;
   
-  std::vector<Peregrine::SmallGraph> freq_patterns;
+  std::vector<std::pair<SmallGraph,uint64_t>> freq_patterns;
   std::vector<uint64_t> freq_counts;
   std::vector<std::string> hosts;
   std::vector<uint16_t>ports;
@@ -380,7 +387,7 @@ void count_client(actor_system& system, const config& cfg) {
       if (cmd == "start"){
           
           t1 = utils::get_timestamp();
-          freq_counts.emplace_back(0);
+          //freq_counts.emplace_back(0);
           //patterns.front().set_labelling(Peregrine::Graph::DISCOVER_LABELS);
           while (step < number_of_fsm)
           {
@@ -397,14 +404,14 @@ void count_client(actor_system& system, const config& cfg) {
             if (is_directory(data_graph_name))
                 {
                   std::cout<<"number of server = "<<number_of_server<<std::endl;
-                  anon_send(a1, match_atom_str_v,data_graph_name,freq_counts, step,edge_strategy,nthreads,nNodes,(uint32_t)i);
+                  anon_send(a1, match_atom_str_v,data_graph_name,freq_patterns, step,edge_strategy,nthreads,nNodes,(uint32_t)i);
                   //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);
                 }
                 else
                 {
                   //SmallGraph G(data_graph_name);
                   std::cout<<"number of server = "<<number_of_server<<std::endl;
-                  anon_send(a1, match_atom_v, data_graph_name ,freq_counts, step,edge_strategy,nthreads, nNodes,(uint32_t)i);
+                  anon_send(a1, match_atom_v, data_graph_name ,freq_patterns, step,edge_strategy,nthreads, nNodes,(uint32_t)i);
                   //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);   
                 }
             }
@@ -415,19 +422,16 @@ void count_client(actor_system& system, const config& cfg) {
             }
             done_server = 0;
             step += 1;
-            freq_counts.clear();
-            
+            //freq_counts.clear();
+            freq_patterns.clear();
             for(int i=0; i<pattern_count.size(); i++){
-              if(pattern_count[i]>pattern_support)
-                freq_counts.push_back(pattern_count[i]);
-              else{
-                freq_counts.push_back(0);
+              if(pattern_count[i].second>pattern_support)
+                freq_patterns.push_back(pattern_count[i]);
                 //freq_patterns.push_back(patterns[i]);
-              }
-              
             }
             std::cout<<"Going to loop again "<<step<<std::endl;
             pattern_count.clear();
+            
             //patterns = Peregrine::PatternGenerator::extend(freq_patterns, edge_strategy);
             
           }
@@ -470,8 +474,8 @@ void count_client(actor_system& system, const config& cfg) {
    time_taken += (t2-t1);
   std::cout<<"End client\n";
   std::cout<<"Time taken = "<< time_taken/1e6<<"s"<<std::endl;
-  for (int i=0; i<freq_counts.size(); i++)
-     std::cout<<patterns_compile[i].first<<" : "<< (int64_t)freq_counts[i] << std::endl;
+  for (int i=0; i<freq_patterns.size(); i++)
+     std::cout<<freq_patterns[i].first<<" : "<< (int64_t)freq_patterns[i].second<< std::endl;
   anon_send_exit(a1, exit_reason::user_shutdown);
   //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
   
