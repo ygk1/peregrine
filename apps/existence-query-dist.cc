@@ -10,6 +10,8 @@
 #include <iostream>
 #include <thread>
 #include <sstream>
+#include <mutex>
+#include <algorithm>
 // #include "caf/actor_ostream.hpp"
 // #include "caf/actor_system.hpp"
 // #include "caf/caf_main.hpp"
@@ -36,14 +38,17 @@ auto t1 = utils::get_timestamp();
 auto t2 = utils::get_timestamp();
 auto t3 = utils::get_timestamp();
 auto t4 = utils::get_timestamp();
-auto t5 = utils::get_timestamp();
-auto t6 = utils::get_timestamp();
+
+
 double time_taken = 0.0;
 double sync_time_taken = 0.0;
-double comm_time_taken = 0.0;
+
 uint32_t number_of_server = 0;
 uint32_t done_server = 0;
 std::vector<uint64_t> pattern_count;
+std::vector<bool> active_state;
+std::vector<bool> done_srv;
+std::mutex active_st;
 bool is_directory(const std::string &path)
 {
    struct stat statbuf;
@@ -56,7 +61,7 @@ behavior count_act(event_based_actor* self){
   self->set_default_handler(print_and_drop);
   return{
     [=](match_atom, std::string data_graph, std::string pattern_name, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
-      std::cout<<"Counting\n"; SmallGraph G(data_graph); 
+      SmallGraph G(data_graph); 
       std::vector<Peregrine::SmallGraph> patterns;
       t1 = utils::get_timestamp();
       if (auto end = pattern_name.rfind("clique"); end != std::string::npos)
@@ -82,7 +87,7 @@ behavior count_act(event_based_actor* self){
       return counts;
             },
     [=](match_atom_str, std::string data_graph_name, std::string pattern_name, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){ 
-      std::cout<<"Counting 2\n"; 
+      
       std::vector<Peregrine::SmallGraph> patterns;
       t1 = utils::get_timestamp();
       if (auto end = pattern_name.rfind("clique"); end != std::string::npos)
@@ -111,7 +116,7 @@ behavior count_act(event_based_actor* self){
 }
 
 struct task {
-  std::variant<count_atom, count_atom_str> op;
+  std::variant<match_atom, match_atom_str> op;
   std::string data_graph; 
   std::string patterns; 
   uint32_t nworkers;
@@ -119,7 +124,7 @@ struct task {
   uint32_t start_task;
 };
 struct state {
-  strong_actor_ptr current_server;
+  std::vector<strong_actor_ptr> current_server;
   std::vector<task> tasks;
 };
 
@@ -151,21 +156,36 @@ void count_client(actor_system& system, const config& cfg);
 behavior init(stateful_actor<state>* self) {
   // transition to `unconnected` on server failure
   self->set_down_handler([=](const down_msg& dm) {
-    if (dm.source == self->state.current_server) {
-      aout(self) << "*** lost connection to server" << std::endl;
-      self->state.current_server = nullptr;
-      self->become(unconnected(self));
+    
+    active_st.lock();
+    int i = 0;
+    int j = 0;
+    for(strong_actor_ptr &serv : self->state.current_server){
+      if (dm.source == serv) {
+        aout(self) << "*** lost connection to server" << std::endl;
+        serv = nullptr;
+        active_state[i]=false;
+        //self->state.current_server.erase(self->state.current_server.begin()+j);
+        std::cout<<i<<std::endl;
+        self->become(unconnected(self));
+        
+      }
+      else
+        j++;
+      i++;
     }
+    active_st.unlock();
+    
   });
   return unconnected(self);
 }
 behavior unconnected(stateful_actor<state>* self) {
   return {
     [=](match_atom op, std::string data_graph,  std::string patterns, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
-       // self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
+       self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
     },
     [=](match_atom_str op, std::string data_graph, std::string patterns, uint32_t nworkers, uint32_t nprocesses, uint32_t start_task){
-       // self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
+       self->state.tasks.emplace_back(task{op, data_graph, patterns, nworkers, nprocesses, start_task});
     },
     [=](connect_atom, const std::string& host, uint16_t port) {
       connecting(self, host, port);
@@ -175,7 +195,7 @@ behavior unconnected(stateful_actor<state>* self) {
 void connecting(stateful_actor<state>* self,  const std::string& host, uint16_t port) {
 
   
-  self->state.current_server = nullptr;
+  //self->state.current_server = nullptr;
   std::vector<std::pair<SmallGraph, uint64_t>> result;
   //auto a1;
   
@@ -198,14 +218,17 @@ void connecting(stateful_actor<state>* self,  const std::string& host, uint16_t 
         aout(self) << "*** successfully connected to server" << std::endl;
         //number_of_server++;
         //self->state.current_server = serv;
-        self->state.current_server = serv;
+       
+        self->state.current_server.push_back(serv);
         auto hdl = actor_cast<actor>(serv);
         self->monitor(hdl);
+        active_state.push_back(true);
         self->become(taskmapping_actor(self,hdl));
       },
       [=](const error& err) {
         aout(self) << R"(*** cannot connect to ")" << host << R"(":)" << port
                    << " => " << to_string(err) << std::endl;
+        active_state.push_back(false);
         self->become(unconnected(self));
       });
 }
@@ -217,26 +240,21 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
         
         [=](std::vector<uint64_t> res){
           int i=0;
-          t6 = utils::get_timestamp();
-          comm_time_taken += (t6-t5);
           t3 = utils::get_timestamp();
           for (const auto &v : res)
             {
               //std::cout << v << std::endl;
               pattern_count[i]+=v;
               if(v>0)
-                done_server=number_of_server;
+                done_server=nNodes;
               i++;
             }
-            if(done_server<number_of_server)
-              done_server++;
+            done_srv[start_task]=true;
+            done_server++;
             std::cout<<"Results from server received from server "<<done_server<<std::endl <<std::flush;
             t4 = utils::get_timestamp();
             sync_time_taken += (t4-t3);
         },
-        // [=](std::string res){
-        //   std::cout<<res<<"\n";
-        // },  
         [=](const error& err){
           // simply try again by enqueueing the task to the mailbox again
           std::cout<<"Didn't get reply from server: "<< to_string(err)<<std::endl;
@@ -262,8 +280,6 @@ behavior taskmapping_actor(stateful_actor<state>* self, const actor& server){
 void count_client(actor_system& system, const config& cfg) {
   // send "Hello World!" to our buddy ...
   //init_global_meta_objects<id_block::Peregrine>();
-  
-  
   std::string data_graph_name(cfg.data_graph_name);
   std::string pattern_name(cfg.pattern_name);
   uint32_t nthreads = (cfg.nthreads);
@@ -271,9 +287,12 @@ void count_client(actor_system& system, const config& cfg) {
   uint16_t port = cfg.port;
   std::string host(cfg.host);
   std::vector<Peregrine::SmallGraph> patterns;
-  number_of_server=nNodes;
+  std::vector<std::pair<std::string, std::string>> host_port;
   std::vector<std::string> hosts;
   std::vector<uint16_t>ports;
+  std::vector<std::string> live_hosts;
+  std::vector<uint16_t> live_ports;
+  std::vector<uint32_t> live_host_id;
   if (auto end = pattern_name.rfind("clique"); end != std::string::npos)
   {
     auto k = std::stoul(pattern_name.substr(0, end-1));
@@ -300,7 +319,7 @@ void count_client(actor_system& system, const config& cfg) {
   
   // auto a3=system.spawn(count_act);
   // auto a2=system.spawn(taskmapping_actor, a3);
-  std::vector<std::pair<std::string, std::string>> host_port;
+  
   //anon_send(a1, connect_atom_v, cfg.host, cfg.port);
   if (!cfg.host.empty() && cfg.port > 0);
     //anon_send(a1, connect_atom_v, cfg.host, cfg.port);
@@ -310,8 +329,8 @@ void count_client(actor_system& system, const config& cfg) {
          << std::endl;
   message_handler eval{
     [&](const std::string& cmd) {
-      if (cmd == "start"){          
-          done =true;
+      if (cmd == "start"){
+        done = true;    
       }
       else if (cmd == "quit"){
         done=true;
@@ -325,14 +344,13 @@ void count_client(actor_system& system, const config& cfg) {
         host_port.emplace_back(arg1, arg2);
         //a1=system.spawn(init);
         char* end=nullptr;
-        hosts.emplace_back(arg1);
-        ports.emplace_back(strtoul(arg2.c_str(), &end, 10));
-
+        hosts.push_back(arg1);
+        ports.push_back(strtoul(arg2.c_str(), &end, 10));
       }
       }
     };
     std::string line;
-    while (!done && (done_server!=nNodes)) {
+    while (!done) {
       std::getline(std::cin, line);
       line = trim(std::move(line)); // ignore leading and trailing whitespaces
       std::vector<std::string> words;
@@ -341,47 +359,113 @@ void count_client(actor_system& system, const config& cfg) {
       if (!eval(msg))
         usage();
   }
-    t1 = utils::get_timestamp();
-    t5 = utils::get_timestamp();
-    for(int i=0; i<hosts.size(); i++){
+
+    
+  t1 = utils::get_timestamp();
+  for(int i=0; i<nNodes; i++){
       
-      
-      
-      anon_send(a1, connect_atom_v, hosts[i],
-                      ports[i]);
-      //number_of_server++;                
+      anon_send(a1, connect_atom_v, hosts[i],ports[i]);
+      done_srv.push_back(false);            
       if (is_directory(data_graph_name))
       {
-        //std::cout<<"number of server = "<<number_of_server<<std::endl;
-        anon_send(a1, match_atom_str_v,data_graph_name,pattern_name,nthreads,nNodes,(number_of_server-1));
-        //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);
+        anon_send(a1, match_atom_str_v,data_graph_name,pattern_name,nthreads,nNodes,(uint32_t)i);
       }
       else
       {
-        //SmallGraph G(data_graph_name);
-        //std::cout<<"number of server = "<<number_of_server<<std::endl;
-        anon_send(a1, match_atom_v, data_graph_name , pattern_name, nthreads, nNodes,(number_of_server-1));
-        //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);   
-      }
-        
-        //anon_send_exit(a1, exit_reason::user_shutdown);
-          
-        
-      
-    }  
-    while(done_server!=number_of_server){
-      usleep(100);
+        anon_send(a1, match_atom_v, data_graph_name , pattern_name, nthreads, nNodes,(uint32_t)i); 
+      }        
+      //std::cout<<" Host "<<host_port[i].first<<" : "<<host_port[i].second<<std::endl;
+    
+  }  
+    std::vector<uint32_t> failed_nodes;
+    uint32_t old_nNodes = nNodes;
+    uint32_t orginal_nNodes = nNodes;
+    std::vector<bool> current_state;
+    std::vector<uint32_t> working_on;
+    for(int i=0; i<old_nNodes; i++){
+      current_state.push_back(true);
+      working_on.push_back(i);
     }
+    //while(true){
+    while(done_server<old_nNodes){
+        usleep(1000);
+        if(active_state.size()>=nNodes){   
+          //std::cout<<" Checking "<< nNodes <<std::endl; 
+          active_st.lock();
+          int j=0;
+          for (int i=0; i<old_nNodes; i++){
+            if(active_state[i]==false){
+              nNodes--;
+              active_state[i]=true;
+              current_state[i]=false;
+              if(working_on[i]!=i && done_srv[i]==false)
+                failed_nodes.push_back(i);
+              failed_nodes.push_back(working_on[i]);
+              std::cout<<"erased "<<ports[i]<<std::endl;
+            }
+            else{
+              
+              j++;
+            }
+              
+
+          }
+          active_st.unlock();
+          
+        }
+        
+     // }
+        
+        if(old_nNodes == failed_nodes.size()){
+          std::cout<<"All servers are down"<<std::endl;
+          break;
+        }
+        else if(failed_nodes.size()>0){
+          for (int i=0; i<old_nNodes; i++){
+            if(current_state[i]==true){
+              live_hosts.push_back(hosts[i]);
+              live_ports.push_back(ports[i]);
+              live_host_id.push_back(i);
+            }
+            
+          }
+          for(int i=0; i<failed_nodes.size(); i++){
+            int a = failed_nodes[i];
+             if(done_srv[a]==false){
+                anon_send(a1, connect_atom_v, live_hosts[i/failed_nodes.size()],live_ports[i/failed_nodes.size()]);
+                working_on[live_host_id[i/failed_nodes.size()]]=failed_nodes[i];         
+                if (is_directory(data_graph_name))
+                {
+                  anon_send(a1, match_atom_str_v,data_graph_name,pattern_name,nthreads,old_nNodes,(uint32_t)failed_nodes[i]);
+                }
+                else
+                {
+                  anon_send(a1, match_atom_v, data_graph_name , pattern_name, nthreads, old_nNodes,(uint32_t)failed_nodes[i]); 
+                }  
+              }      
+            }
+          nNodes = old_nNodes - live_hosts.size();
+          failed_nodes.clear();
+          live_hosts.clear();
+          live_ports.clear();
+          live_host_id.clear();
+          //done_server = 0;
+          
+          
+        }
+        else{
+          continue;
+        }
+        
     
-    t2 = utils::get_timestamp();
-    
+      } 
   //anon_send(a1, connect_atom_v, host, port);
-  
+   t2 = utils::get_timestamp();
    time_taken += (t2-t1);
   std::cout<<"End client\n";
   std::cout<<"Time taken = "<< time_taken/1e6<<"s"<<std::endl;
   std::cout<<"Sync Time taken = "<< sync_time_taken/1e6<<"s"<<std::endl;
-  std::cout<<"Comm Time taken = "<< comm_time_taken/1e6<<"s"<<std::endl;
+  
   anon_send_exit(a1, exit_reason::user_shutdown);
   //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
   for (int i=0; i<patterns.size(); i++){
@@ -392,7 +476,9 @@ void count_client(actor_system& system, const config& cfg) {
     
     }
   //anon_send_exit(a1, exit_reason::user_shutdown);
+
 }
+
 void count_server(actor_system& system, const config& cfg){
 
   

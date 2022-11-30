@@ -312,6 +312,7 @@ void count_client(actor_system& system, const config& cfg) {
   std::vector<uint16_t>ports;
   std::vector<std::string> live_hosts;
   std::vector<uint16_t> live_ports;
+  std::vector<uint32_t> live_host_id;
   if (auto end = pattern_name.rfind("motifs"); end != std::string::npos)
   {
     auto k = std::stoul(pattern_name.substr(0, end-1));
@@ -407,8 +408,11 @@ void count_client(actor_system& system, const config& cfg) {
     uint32_t old_nNodes = nNodes;
     uint32_t orginal_nNodes = nNodes;
     std::vector<bool> current_state;
-    for(int i=0; i<old_nNodes; i++)
+    std::vector<uint32_t> working_on;
+    for(int i=0; i<old_nNodes; i++){
       current_state.push_back(true);
+      working_on.push_back(i);
+    }
     //while(true){
       while(done_server<old_nNodes){
         usleep(1000);
@@ -421,7 +425,9 @@ void count_client(actor_system& system, const config& cfg) {
               nNodes--;
               active_state[i]=true;
               current_state[i]=false;
-              failed_nodes.push_back(i);
+              if(working_on[i]!=i && done_srv[i]==false)
+                failed_nodes.push_back(i);
+              failed_nodes.push_back(working_on[i]);
               std::cout<<"erased "<<ports[i]<<std::endl;
             }
             else{
@@ -446,7 +452,7 @@ void count_client(actor_system& system, const config& cfg) {
             if(current_state[i]==true){
               live_hosts.push_back(hosts[i]);
               live_ports.push_back(ports[i]);
-              
+              live_host_id.push_back(i);
             }
             
           }
@@ -454,7 +460,7 @@ void count_client(actor_system& system, const config& cfg) {
             int a = failed_nodes[i];
              if(done_srv[a]==false){
                 anon_send(a1, connect_atom_v, live_hosts[i/failed_nodes.size()],live_ports[i/failed_nodes.size()]);
-                            
+                working_on[live_host_id[i/failed_nodes.size()]]=failed_nodes[i];         
                 if (is_directory(data_graph_name))
                 {
                   anon_send(a1, match_atom_str_v,data_graph_name,pattern_name,nthreads,old_nNodes,(uint32_t)failed_nodes[i]);
@@ -469,6 +475,7 @@ void count_client(actor_system& system, const config& cfg) {
           failed_nodes.clear();
           live_hosts.clear();
           live_ports.clear();
+          live_host_id.clear();
           //done_server = 0;
           
           
