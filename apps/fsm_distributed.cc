@@ -84,7 +84,7 @@ behavior count_act(event_based_actor* self){
               {
                 //std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
-                if(v>support)
+                if(v>=support)
                   pattern_supports.emplace_back(std::pair(p,v));
                
               
@@ -118,7 +118,7 @@ behavior count_act(event_based_actor* self){
               {
                 //std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
-                if(v>support)
+                if(v>=support)
                   pattern_supports.emplace_back(std::pair(p,v));
                
               }
@@ -158,7 +158,7 @@ behavior count_act(event_based_actor* self){
               {
                // std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
-                if(v>support)
+                if(v>=support)
                   pattern_supports.emplace_back(std::pair(p,v));
                
               
@@ -191,7 +191,7 @@ behavior count_act(event_based_actor* self){
               {
                 //std::cout << p << ": " << (int64_t)v << std::endl;
                 result.emplace_back(v);
-                if(v>support)
+                if(v>=support)
                   pattern_supports.emplace_back(std::pair(p,v));
                
               }
@@ -426,14 +426,14 @@ void count_client(actor_system& system, const config& cfg) {
             if (is_directory(data_graph_name))
                 {
                   //std::cout<<"number of server = "<<number_of_server<<std::endl;
-                  anon_send(a1, match_atom_str_v,data_graph_name,pattern_count, step, pattern_support, edge_strategy,nthreads,nNodes,(uint32_t)i);
+                  anon_send(a1, match_atom_str_v,data_graph_name,freq_patterns, step, pattern_support, edge_strategy,nthreads,nNodes,(uint32_t)i);
                   //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);
                 }
                 else
                 {
                   //SmallGraph G(data_graph_name);
                   //std::cout<<"number of server = "<<number_of_server<<std::endl;
-                  anon_send(a1, match_atom_v, data_graph_name ,pattern_count, step, pattern_support, edge_strategy,nthreads, nNodes,(uint32_t)i);
+                  anon_send(a1, match_atom_v, data_graph_name ,freq_patterns, step, pattern_support, edge_strategy,nthreads, nNodes,(uint32_t)i);
                   //anon_send(a2, match_atom_str_v,data_graph_name,patterns,nthreads,nNodes);   
                 }
             }
@@ -444,7 +444,13 @@ void count_client(actor_system& system, const config& cfg) {
             }
             done_server = 0;
             step += 1;
-            //pattern_count.clear();
+            freq_patterns.clear();
+            for(auto &[p,v] : pattern_count)
+            {
+              freq_patterns.push_back(std::pair(p,v));
+            }
+            
+            pattern_count.clear();
             
             //patterns = Peregrine::PatternGenerator::extend(freq_patterns, edge_strategy);
             
@@ -488,9 +494,9 @@ void count_client(actor_system& system, const config& cfg) {
    time_taken += (t2-t1);
   std::cout<<"End client\n";
   std::cout<<"Time taken = "<< time_taken/1e6<<"s"<<std::endl;
-  std::cout<<"Found "<<pattern_count.size()<<" frequent patterns"<<std::endl;
-  for (int i=0; i<pattern_count.size(); i++)
-     std::cout<<pattern_count[i].first<<" : "<< (int64_t)pattern_count[i].second<< std::endl;
+  std::cout<<"Found "<<freq_patterns.size()<<" frequent patterns"<<std::endl;
+  for (int i=0; i<freq_patterns.size(); i++)
+     std::cout<<freq_patterns[i].first<<" : "<< (int64_t)freq_patterns[i].second<< std::endl;
   
   anon_send_exit(a1, exit_reason::user_shutdown);
   //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
