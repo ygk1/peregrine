@@ -330,7 +330,7 @@ void count_client(actor_system& system, const config& cfg) {
     std::cout << "Usage:" << std::endl
          << "  quit                  : terminates the program" << std::endl
          << "  connect <host> <port> : connects to a remote actor" << std::endl
-         << "  start work now            : to start work" << std::endl
+         << "  start           : to start work" << std::endl
          << std::endl;
   };
   usage();
