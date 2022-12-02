@@ -143,9 +143,9 @@ In the binary format, matches are written as sequences of `n` 4-byte vertex IDs 
 ```
 bits(v1)bits(v2)...bits(vn)...
 ```
-To run the distributed version of the count, enumerate, existence-query and FSM:
+### Run distributed Peregrine
 
-### 1. Copy the data graph to the servers, build your program and start up the server as
+#### 1. Copy the data graph to the servers, build your program and start up the server as
 
 ```
 USAGE: bin/count_distributed -s [port]
@@ -156,40 +156,40 @@ USAGE: bin/fsm_distributed -s [port]
 For example:
 $ bin\count_distributed -s 4242
 
-### 2. On the client side:
+#### 2. On the client side:
 
 Count Distributed :
 ```
 USAGE: bin/count_dsitributed -d  <data graph> -p <pattern | #-motifs | #-clique> -t [#threads] -n [#Nodes] -c(client mode flag)
 ```
 For example:
-
+```
 $ bin/count_dsitributed -d  data/citeseer -p 3-motifs -t 8 -n 2 -c
-
+```
 Enumerate Distributed :
 ```
 USAGE: bin/enumerate_dsitributed -d  <data graph> -p <pattern | #-motifs | #-clique> -t [#threads] -n [#Nodes] -c(client mode flag)
 ```
 For example:
-
+```
 $ bin/enumerate_dsitributed -d  data/citeseer -p 3-motifs -t 8 -n 2 -c
-
+```
 Existence Query Distributed :
 ```
 USAGE: bin/existence-query-dist -d  <data graph> -p <pattern | #-clique> -t [#threads] -n [#Nodes] -c(client mode flag)
 ```
 For example:
-
+```
 $ bin/existence-query-dist -d  data/citeseer -p 14-clique -t 8 -n 2 -c
-
+```
 FSM Distributed :
 ```
 USAGE: bin/fsm_distributed -d  <data graph> -k [#steps] -u [support threshold] -t [#threads] -n [#Nodes] -e(flag for edge stategy) -c(client mode flag)
 ```
 For example:
-
+```
 $ bin/fsm_distributed -d data/citeseer -k 3 -u 300 -t 8 -n 2 -e -c
-
+```
 
 ## 2. Writing your own programs
 
